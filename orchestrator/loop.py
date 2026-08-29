@@ -47,7 +47,15 @@ class AgentLoop:
 
             assert isinstance(message, ToolCall)
             if message.id in seen_call_ids:
-                raise RuntimeError(f"检测到重复调用 ID：{message.id}")
+                error_result = {
+                    "type": "protocol_error",
+                    "ok": False,
+                    "error": f"调用 ID {message.id!r} 已经使用过",
+                    "instruction": "不要重复工具调用；根据已有结果继续，并为下一次必要调用使用全新的唯一 ID。",
+                }
+                self._log("protocol_error", error_result)
+                raw_message = self.model.continue_with_result(error_result)
+                continue
             seen_call_ids.add(message.id)
 
             try:

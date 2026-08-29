@@ -79,7 +79,7 @@ def build_coding_registry(workspace: Path) -> ToolRegistry:
     tools.append(
         Tool(
             "create_text_file",
-            "创建新的 UTF-8 文本文件。参数：path、content；禁止覆盖已有文件",
+            "创建新的 UTF-8 文本文件。参数：path、content；禁止覆盖已有文件；支持 .py/.txt/.md/.json/.yaml/.yml/.toml",
             False,
             lambda a: create_text_file(workspace, a),
             lambda a: preview_create_text_file(workspace, a),

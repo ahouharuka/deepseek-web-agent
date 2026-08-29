@@ -87,6 +87,12 @@ python main.py --web --workspace "D:\Projects\my-app" --yes "找出用户登录�
 python main.py --web --workspace "D:\Projects\my-app" --yes "给 calculator.py 的 divide 函数补充除数为零的错误处理，并运行现有测试。不要修改测试。"
 ```
 
+新建一个 Python 文件（最好明确写出文件名）：
+
+```powershell
+python main.py --web --workspace "D:\Projects\empty-demo" --yes "新建 hello.py，文件内容为 print('hello world')。除此之外不要读取或修改其他文件。"
+```
+
 查看可用 Skill：
 
 ```powershell
@@ -131,6 +137,10 @@ python main.py --help
 **为什么浏览器打开后没有继续？**
 
 确认你已经在程序弹出的专用浏览器窗口里登录 DeepSeek，并且聊天输入框已经出现。不要关闭该窗口。
+
+**为什么简单的新建文件任务反复扫描目录？**
+
+请给出明确文件名，例如“新建 `hello.py`”，并尽量把 `--workspace` 指向一个小而明确的项目目录。像“写一个 `.py` 文档”这样的描述没有文件名，在包含多个项目和已有 Python 文件的大目录中容易产生歧义。
 
 **任务结束后想暂时保留浏览器怎么办？**
 

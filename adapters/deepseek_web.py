@@ -34,7 +34,7 @@ class DeepSeekWebModel:
         self._playwright = None
         self._context = None
         self._page = None
-        self._last_response_count = 0
+        self._seen_response_texts: set[str] = set()
 
     def __enter__(self) -> "DeepSeekWebModel":
         try:
@@ -65,6 +65,7 @@ class DeepSeekWebModel:
             self._playwright.stop()
 
     def start(self, task: str, tool_descriptions: list[dict[str, Any]]) -> object:
+        self._seen_response_texts.clear()
         return self._send_and_parse(build_initial_prompt(task, tool_descriptions))
 
     def continue_with_result(self, result: dict[str, Any]) -> object:
@@ -115,9 +116,10 @@ class DeepSeekWebModel:
         assert self._page is not None
         input_box = self._page.get_by_placeholder(self.INPUT_PLACEHOLDER, exact=False)
         response_locator = self._page.locator("p")
-        before_candidates = {
+        visible_before = {
             text.strip() for text in response_locator.all_inner_texts() if _looks_like_json(text)
         }
+        self._seen_response_texts.update(visible_before)
         input_box.fill(prompt)
         input_box.press("Enter")
         self._page.wait_for_timeout(500)
@@ -131,11 +133,12 @@ class DeepSeekWebModel:
         last_text = ""
         stable_since = time.monotonic()
         while time.monotonic() < deadline:
-            text = select_new_json_candidate(response_locator.all_inner_texts(), before_candidates)
+            text = select_new_json_candidate(response_locator.all_inner_texts(), self._seen_response_texts)
             if text and text != last_text:
                 last_text = text
                 stable_since = time.monotonic()
             elif text and time.monotonic() - stable_since >= 1.5:
+                self._seen_response_texts.add(text)
                 return text
             time.sleep(0.25)
         raise DeepSeekWebError("等待 DeepSeek 回复超时")

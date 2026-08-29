@@ -26,6 +26,10 @@ class DeepSeekWebTests(unittest.TestCase):
         texts = ["ordinary user prompt", old, new]
         self.assertEqual(select_new_json_candidate(texts, {old}), new)
 
+    def test_resurfaced_old_json_is_not_selected(self):
+        old = '{"type":"tool_call","id":"1"}'
+        self.assertEqual(select_new_json_candidate([old], {old}), "")
+
 
 if __name__ == "__main__":
     unittest.main()
