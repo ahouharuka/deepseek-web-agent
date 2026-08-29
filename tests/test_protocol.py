@@ -16,6 +16,12 @@ class ProtocolTests(unittest.TestCase):
         with self.assertRaises(ProtocolError):
             parse_agent_message({"type": "shell", "content": "whoami"})
 
+    def test_oversized_fields_are_rejected(self):
+        with self.assertRaises(ProtocolError):
+            parse_agent_message({"type": "tool_call", "id": "x" * 129, "tool": "read_file", "arguments": {}})
+        with self.assertRaises(ProtocolError):
+            parse_agent_message({"type": "final", "content": "x" * 100_001})
+
 
 if __name__ == "__main__":
     unittest.main()

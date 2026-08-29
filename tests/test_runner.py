@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.runner import preview_run_tests, run_tests
+from tools.runner import _sanitized_environment, preview_run_tests, run_tests
 
 
 class RunnerTests(unittest.TestCase):
@@ -31,3 +31,9 @@ class RunnerTests(unittest.TestCase):
     def test_preview_contains_no_user_command(self):
         preview = preview_run_tests(self.workspace, {"runner": "python_unittest", "path": "tests"})
         self.assertIn("-m unittest discover", preview)
+
+    def test_environment_does_not_inherit_credentials(self):
+        environment = _sanitized_environment()
+        self.assertNotIn("AWS_SECRET_ACCESS_KEY", environment)
+        self.assertNotIn("GITHUB_TOKEN", environment)
+        self.assertEqual(environment["PYTHONNOUSERSITE"], "1")

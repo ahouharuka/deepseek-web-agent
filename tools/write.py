@@ -4,7 +4,7 @@ import difflib
 from pathlib import Path
 from typing import Any
 
-from tools.readonly import resolve_in_workspace
+from tools.readonly import ensure_no_symlink_path, resolve_in_workspace
 
 
 MAX_FILE_CHARS = 200_000
@@ -20,6 +20,7 @@ def _prepare(workspace: Path, arguments: dict[str, Any]) -> tuple[Path, str, str
     target = resolve_in_workspace(workspace, arguments["path"])
     if not target.is_file():
         raise ValueError("当前工具只能修改已有文本文件")
+    ensure_no_symlink_path(workspace, target)
     old_text = arguments["old_text"]
     new_text = arguments["new_text"]
     if not isinstance(old_text, str) or not old_text:
@@ -91,6 +92,7 @@ def _prepare_replace_line(workspace: Path, arguments: dict[str, Any]) -> tuple[P
     target = resolve_in_workspace(workspace, arguments["path"])
     if not target.is_file():
         raise ValueError("目标不是已有文件")
+    ensure_no_symlink_path(workspace, target)
     line_number = arguments["line_number"]
     expected = arguments["expected"]
     replacement = arguments["replacement"]

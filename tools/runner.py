@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import os
 from pathlib import Path
 from typing import Any
 
@@ -10,6 +11,7 @@ from tools.readonly import resolve_in_workspace
 
 MAX_OUTPUT_CHARS = 30_000
 TIMEOUT_SECONDS = 120
+SAFE_ENV_NAMES = {"SYSTEMROOT", "WINDIR", "TEMP", "TMP", "TMPDIR", "LANG", "LC_ALL"}
 
 
 def _prepare(workspace: Path, arguments: dict[str, Any]) -> tuple[list[str], Path]:
@@ -42,6 +44,7 @@ def run_tests(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
             errors="replace",
             timeout=TIMEOUT_SECONDS,
             shell=False,
+            env=_sanitized_environment(),
         )
         stdout = completed.stdout
         stderr = completed.stderr
@@ -68,3 +71,9 @@ def _as_text(value: str | bytes | None) -> str:
     if value is None:
         return ""
     return value.decode("utf-8", errors="replace") if isinstance(value, bytes) else value
+
+
+def _sanitized_environment() -> dict[str, str]:
+    environment = {name: value for name, value in os.environ.items() if name.upper() in SAFE_ENV_NAMES}
+    environment.update({"PYTHONNOUSERSITE": "1", "PYTHONDONTWRITEBYTECODE": "1", "PYTHONUTF8": "1"})
+    return environment

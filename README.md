@@ -113,7 +113,7 @@ Built-in skills live in `agent_skills/`. A workspace may provide `.agent-skills/
 
 The workspace passed to `--workspace` is the filesystem boundary. Resolved paths outside it are rejected. The agent hides or denies common sensitive locations, `.env` files, key/certificate extensions, and several likely token/private-key patterns.
 
-This is defense in depth, not a complete secret scanner. Source files successfully read by a tool are sent to DeepSeek through the web chat, and audit logs store tool results locally in plaintext. Use a narrowly scoped, non-sensitive workspace.
+This is defense in depth, not a complete secret scanner. Source files successfully read by a tool are sent to DeepSeek through the web chat. Audit logs redact content-bearing fields but retain paths and tool metadata. Use a narrowly scoped, non-sensitive workspace.
 
 See [SECURITY.md](SECURITY.md) for the threat model.
 
@@ -128,7 +128,7 @@ See [SECURITY.md](SECURITY.md) for the threat model.
 
 ## Audit logs
 
-Every run writes JSON Lines records under `logs/`. Logs may contain source code; protect or delete them according to your retention policy. The directory is ignored by Git.
+Every run writes JSON Lines records under `logs/`. Source-bearing fields are redacted and long values are truncated, while paths and tool metadata remain available for review. Protect or delete logs according to your retention policy. The directory is ignored by Git.
 
 ## Development
 

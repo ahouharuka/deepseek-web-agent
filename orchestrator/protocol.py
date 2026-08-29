@@ -8,6 +8,12 @@ class ProtocolError(ValueError):
     pass
 
 
+MAX_ID_CHARS = 128
+MAX_TOOL_CHARS = 128
+MAX_CONTENT_CHARS = 100_000
+MAX_ARGUMENT_ITEMS = 32
+
+
 @dataclass(frozen=True)
 class ToolCall:
     type: Literal["tool_call"]
@@ -44,11 +50,17 @@ def parse_agent_message(value: object) -> AgentMessage:
         arguments = value["arguments"]
         if not isinstance(arguments, dict):
             raise ProtocolError("arguments 必须是对象")
+        if len(call_id) > MAX_ID_CHARS or len(tool) > MAX_TOOL_CHARS:
+            raise ProtocolError("id 或 tool 过长")
+        if len(arguments) > MAX_ARGUMENT_ITEMS:
+            raise ProtocolError("arguments 字段过多")
         return ToolCall(type="tool_call", id=call_id, tool=tool, arguments=arguments)
 
     if message_type in {"final", "ask_user"}:
         _require_exact_keys(value, {"type", "content"})
         content = _nonempty_string(value["content"], "content")
+        if len(content) > MAX_CONTENT_CHARS:
+            raise ProtocolError("content 过长")
         if message_type == "final":
             return FinalMessage(type="final", content=content)
         return AskUserMessage(type="ask_user", content=content)

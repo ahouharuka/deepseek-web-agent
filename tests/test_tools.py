@@ -18,6 +18,19 @@ class ReadonlyToolTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             resolve_in_workspace(self.workspace, "../outside.txt")
 
+    def test_absolute_path_is_rejected(self):
+        with self.assertRaises(ValueError):
+            resolve_in_workspace(self.workspace, str((self.workspace / "hello.txt").resolve()))
+
+    def test_symlink_is_rejected_when_supported(self):
+        link = self.workspace / "linked.txt"
+        try:
+            link.symlink_to(self.workspace / "hello.txt")
+        except (OSError, NotImplementedError):
+            self.skipTest("symlinks are unavailable")
+        with self.assertRaisesRegex(ValueError, "符号链接"):
+            read_file(self.workspace, {"path": "linked.txt"})
+
     def test_list_and_read(self):
         self.assertEqual(list_files(self.workspace, {"path": "."})[0]["path"], "hello.txt")
         self.assertEqual(read_file(self.workspace, {"path": "hello.txt"})["text"], "alpha\nbeta\n")
@@ -38,12 +51,33 @@ class ReadonlyToolTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "安全策略拒绝"):
             read_file(self.workspace, {"path": ".env"})
 
+    def test_credential_directories_are_hidden_and_denied(self):
+        directory = self.workspace / ".ssh"
+        directory.mkdir()
+        (directory / "config").write_text("Host example", encoding="utf-8")
+        names = {item["path"] for item in list_files(self.workspace, {"path": "."})}
+        self.assertNotIn(".ssh", names)
+        with self.assertRaisesRegex(ValueError, "安全策略拒绝"):
+            read_file(self.workspace, {"path": ".ssh/config"})
+
     def test_private_key_content_is_denied(self):
         (self.workspace / "config.txt").write_text(
-            "-----BEGIN PRIVATE KEY-----\nnot-a-real-key\n", encoding="utf-8"
+            "-----BEGIN " + "PRIVATE KEY-----\nnot-a-real-key\n", encoding="utf-8"
         )
         with self.assertRaisesRegex(ValueError, "疑似包含密钥"):
             read_file(self.workspace, {"path": "config.txt"})
+
+    def test_additional_token_formats_are_denied(self):
+        (self.workspace / "config.txt").write_text(
+            "token=github" + "_pat_" + "abcdefghijklmnopqrstuvwxyz123456", encoding="utf-8"
+        )
+        with self.assertRaisesRegex(ValueError, "疑似包含密钥"):
+            read_file(self.workspace, {"path": "config.txt"})
+
+    def test_large_file_is_denied(self):
+        (self.workspace / "large.txt").write_text("x" * 1_000_001, encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "文件超过"):
+            read_file(self.workspace, {"path": "large.txt"})
 
 
 if __name__ == "__main__":
