@@ -1,0 +1,44 @@
+name: desktop builds
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -r requirements-build.txt
+      - shell: pwsh
+        run: ./scripts/build_windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DeepSeekWebAgent-windows
+          path: dist/DeepSeekWebAgent-windows.zip
+
+  package-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            architecture: apple-silicon
+          - runner: macos-15-intel
+            architecture: intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: chmod +x scripts/build_macos.sh && ./scripts/build_macos.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DeepSeekWebAgent-macOS-${{ matrix.architecture }}
+          path: dist/DeepSeekWebAgent-macOS-${{ matrix.architecture }}.dmg

@@ -7,6 +7,27 @@ An experimental, human-supervised coding agent that uses the DeepSeek web chat a
 
 [中文说明](README.zh-CN.md)
 
+## Desktop app (Windows and macOS)
+
+The desktop client is the easiest way to use the project. It provides a project-folder picker, a natural-language task box, approval dialogs, progress output, and a continuing multi-turn session.
+
+1. Download the matching build artifact from the repository's **Actions → desktop builds** run.
+2. Windows: extract the entire ZIP, then run `DeepSeekWebAgent.exe`.
+3. macOS: choose the Apple Silicon or Intel DMG, open it, and drag the app to Applications.
+4. Select the smallest project folder the agent needs, type an instruction, and click the send button.
+5. On first use, sign in to DeepSeek in the dedicated browser window opened by the app.
+6. Review every write or code-execution preview before approving it. Read-only inspection can be auto-approved.
+
+Example instruction:
+
+```text
+Inspect the project directory and the necessary files, add hello.py that prints Hello World, then run it and verify the result.
+```
+
+The current packages are unsigned development builds. Windows SmartScreen or macOS Gatekeeper may show a warning. Only run packages downloaded from this repository. See `README-Windows.txt` and `README-macOS.txt` for platform-specific instructions.
+
+The command-line interface remains available for scripting and development.
+
 ## Where do I type the instruction?
 
 Put the instruction at the end of the terminal command, inside quotes:

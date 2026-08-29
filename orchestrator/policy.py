@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 from orchestrator.protocol import ToolCall
 
@@ -14,6 +15,7 @@ class PolicyDenied(RuntimeError):
 class Policy:
     workspace: Path
     auto_approve_readonly: bool = False
+    approver: Callable[[ToolCall, bool, str | None, str], bool] | None = None
 
     def authorize(
         self,
@@ -23,6 +25,10 @@ class Policy:
         approval_label: str = "执行高风险工具",
     ) -> None:
         if readonly and self.auto_approve_readonly:
+            return
+        if self.approver is not None:
+            if not self.approver(call, readonly, preview, approval_label):
+                raise PolicyDenied("用户拒绝了工具调用")
             return
         if readonly:
             prompt = f"允许只读工具 {call.tool} 执行参数 {call.arguments}？[y/N] "
