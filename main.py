@@ -20,6 +20,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--web", action="store_true", help="通过独立浏览器连接 DeepSeek 网页")
     parser.add_argument("--browser", type=Path, help="Chrome 或 Edge 可执行文件路径")
     parser.add_argument("--keep-browser-open", action="store_true", help="任务结束后等待按 Enter 再关闭浏览器")
+    parser.add_argument("--interactive", action="store_true", help="任务完成后继续在同一浏览器会话中接收新任务")
     parser.add_argument("--yes", action="store_true", help="自动批准只读工具调用")
     parser.add_argument("--skill", action="append", default=[], help="加载一个已注册 Skill，可重复指定")
     parser.add_argument("--list-skills", action="store_true", help="列出当前可用 Skill 后退出")
@@ -47,7 +48,7 @@ def main() -> int:
         selected_skills = catalog.load(args.skill)
     except SkillError as exc:
         raise SystemExit(str(exc)) from exc
-    task = apply_skills_to_task(args.task, selected_skills)
+    task = args.task
     reasoning = resolve_reasoning(args.reasoning, [skill.name for skill in selected_skills], args.task)
     policy = Policy(workspace=workspace, auto_approve_readonly=args.yes)
     tools = build_coding_registry(workspace)
@@ -62,7 +63,7 @@ def main() -> int:
         },
     )
     if args.demo:
-        result = AgentLoop(DemoModel(), tools, policy, max_steps=args.max_steps, audit=audit).run(task)
+        _run_session(DemoModel(), tools, policy, audit, task, selected_skills, args.max_steps, args.interactive)
     elif args.web:
         from adapters.browser_discovery import find_browser_executable
         from adapters.deepseek_web import DeepSeekWebModel
@@ -78,13 +79,29 @@ def main() -> int:
             keep_open=args.keep_browser_open,
             reasoning=reasoning,
         ) as model:
-            result = AgentLoop(model, tools, policy, max_steps=args.max_steps, audit=audit).run(task)
+            _run_session(model, tools, policy, audit, task, selected_skills, args.max_steps, args.interactive)
     else:
         raise SystemExit("请选择 --demo 或 --web")
-    print(result)
     print(f"深度思考：{'开启' if reasoning else '关闭'}")
     print(f"审计日志：{audit.path.resolve()}")
     return 0
+
+
+def _run_session(model, tools, policy, audit, first_task: str, skills, max_steps: int, interactive: bool) -> None:
+    current_task = first_task
+    while True:
+        prepared_task = apply_skills_to_task(current_task, skills)
+        result = AgentLoop(model, tools, policy, max_steps=max_steps, audit=audit).run(prepared_task)
+        print(f"\nAgent 最终回答：\n{result}")
+        if not interactive:
+            return
+        while True:
+            current_task = input("\n继续输入下一项任务（输入 /exit 结束）：").strip()
+            if current_task.casefold() in {"/exit", "/quit", "exit", "quit"}:
+                return
+            if current_task:
+                break
+            print("任务不能为空。")
 
 
 if __name__ == "__main__":

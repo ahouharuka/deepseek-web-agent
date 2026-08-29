@@ -17,6 +17,14 @@ python main.py --web --workspace "/path/to/your/project" --yes "Explain this pro
 
 You do not need to paste it into DeepSeek yourself. The program opens a dedicated browser, sends the instruction, handles the JSON tool loop, and prints the final answer in the terminal. When a write or test run is requested, review the terminal preview and type `y` to approve it.
 
+For a continuing conversation, add `--interactive`:
+
+```bash
+python main.py --web --interactive --workspace "/path/to/project" --yes "Inspect the project and explain its structure."
+```
+
+After each completed task, enter another instruction in the terminal or type `/exit`. If the agent needs clarification during a task, it pauses at `Your reply:` and continues the same task after receiving your answer. Complex tasks may inspect directories, read files, and search source code across multiple tool calls before making changes.
+
 ## What it does
 
 ```text

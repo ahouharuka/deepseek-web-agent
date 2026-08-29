@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from orchestrator.model import ModelAdapter
 from orchestrator.audit import AuditLog
 from orchestrator.policy import Policy, PolicyDenied
@@ -8,12 +10,21 @@ from tools.registry import ToolRegistry
 
 
 class AgentLoop:
-    def __init__(self, model: ModelAdapter, tools: ToolRegistry, policy: Policy, max_steps: int = 20, audit: AuditLog | None = None):
+    def __init__(
+        self,
+        model: ModelAdapter,
+        tools: ToolRegistry,
+        policy: Policy,
+        max_steps: int = 20,
+        audit: AuditLog | None = None,
+        user_input: Callable[[str], str] = input,
+    ):
         self.model = model
         self.tools = tools
         self.policy = policy
         self.max_steps = max_steps
         self.audit = audit
+        self.user_input = user_input
 
     def run(self, task: str) -> str:
         self._log("task_started", {"task": task, "max_steps": self.max_steps})
@@ -43,7 +54,16 @@ class AgentLoop:
                 self._log("task_finished", {"content": message.content})
                 return message.content
             if isinstance(message, AskUserMessage):
-                return f"模型需要用户输入：{message.content}"
+                print(f"\nAgent 需要你的补充信息：\n{message.content}")
+                answer = self.user_input("你的回复：")
+                user_result = {
+                    "type": "user_response",
+                    "question": message.content,
+                    "answer": answer,
+                }
+                self._log("user_response", user_result)
+                raw_message = self.model.continue_with_result(user_result)
+                continue
 
             assert isinstance(message, ToolCall)
             if message.id in seen_call_ids:

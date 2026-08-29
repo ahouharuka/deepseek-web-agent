@@ -10,7 +10,10 @@ from tools.readonly import contains_likely_secret
 
 
 MAX_LOG_STRING_CHARS = 2_000
-SENSITIVE_FIELDS = {"task", "text", "content", "stdout", "stderr", "old_text", "new_text", "replacement", "expected"}
+SENSITIVE_FIELDS = {
+    "task", "text", "content", "stdout", "stderr", "old_text", "new_text",
+    "replacement", "expected", "question", "answer",
+}
 
 
 class AuditLog:
