@@ -7,6 +7,16 @@ An experimental, human-supervised coding agent that uses the DeepSeek web chat a
 
 [中文说明](README.zh-CN.md)
 
+## Where do I type the instruction?
+
+Put the instruction at the end of the terminal command, inside quotes:
+
+```bash
+python main.py --web --workspace "/path/to/your/project" --yes "Explain this project. Do not modify files."
+```
+
+You do not need to paste it into DeepSeek yourself. The program opens a dedicated browser, sends the instruction, handles the JSON tool loop, and prints the final answer in the terminal. When a write or test run is requested, review the terminal preview and type `y` to approve it.
+
 ## What it does
 
 ```text
