@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 import time
 from pathlib import Path
 from typing import Any
@@ -65,7 +66,6 @@ class DeepSeekWebModel:
             self._playwright.stop()
 
     def start(self, task: str, tool_descriptions: list[dict[str, Any]]) -> object:
-        self._seen_response_texts.clear()
         return self._send_and_parse(build_initial_prompt(task, tool_descriptions))
 
     def continue_with_result(self, result: dict[str, Any]) -> object:
@@ -97,22 +97,25 @@ class DeepSeekWebModel:
                 raise DeepSeekWebError("“深度思考”开关未切换到请求的状态")
 
     def _send_and_parse(self, prompt: str) -> object:
-        text = self._send_and_wait(prompt)
+        turn_token = secrets.token_hex(12)
+        marked_prompt = _with_turn_marker(prompt, turn_token)
+        text = self._send_and_wait(marked_prompt, turn_token)
         try:
-            return parse_json_response(text)
+            return parse_marked_json_response(text, turn_token)
         except DeepSeekWebError as first_error:
+            repair_token = secrets.token_hex(12)
             repair_prompt = (
                 "你上一条回复不是有效 JSON。不要改变语义，不要重新执行或重复声称执行工具；"
                 "只把上一条回复改写成一个语法正确的 JSON 对象，字符串内部的双引号必须转义。"
                 "禁止 Markdown 和额外文字。\n\n上一条回复：\n" + text
             )
-            repaired = self._send_and_wait(repair_prompt)
+            repaired = self._send_and_wait(_with_turn_marker(repair_prompt, repair_token), repair_token)
             try:
-                return parse_json_response(repaired)
+                return parse_marked_json_response(repaired, repair_token)
             except DeepSeekWebError as second_error:
                 raise DeepSeekWebError("DeepSeek 连续两次返回无效 JSON，任务已停止") from second_error
 
-    def _send_and_wait(self, prompt: str) -> str:
+    def _send_and_wait(self, prompt: str, turn_token: str) -> str:
         assert self._page is not None
         input_box = self._page.get_by_placeholder(self.INPUT_PLACEHOLDER, exact=False)
         response_locator = self._page.locator("p")
@@ -133,7 +136,9 @@ class DeepSeekWebModel:
         last_text = ""
         stable_since = time.monotonic()
         while time.monotonic() < deadline:
-            text = select_new_json_candidate(response_locator.all_inner_texts(), self._seen_response_texts)
+            text = select_new_json_candidate(
+                response_locator.all_inner_texts(), self._seen_response_texts, turn_token
+            )
             if text and text != last_text:
                 last_text = text
                 stable_since = time.monotonic()
@@ -158,12 +163,33 @@ def parse_json_response(text: str) -> object:
         raise DeepSeekWebError(f"DeepSeek 回复不是有效 JSON：{text[:300]}") from exc
 
 
-def select_new_json_candidate(texts: list[str], baseline: set[str]) -> str:
+def select_new_json_candidate(texts: list[str], baseline: set[str], turn_token: str | None = None) -> str:
     for text in reversed(texts):
         stripped = text.strip()
-        if _looks_like_json(stripped) and stripped not in baseline:
+        marker_matches = turn_token is None or turn_token in stripped
+        if _looks_like_json(stripped) and stripped not in baseline and marker_matches:
             return stripped
     return ""
+
+
+def parse_marked_json_response(text: str, expected_turn: str) -> object:
+    value = parse_json_response(text)
+    if not isinstance(value, dict) or value.get("_turn") != expected_turn:
+        raise DeepSeekWebError("DeepSeek 回复缺少当前回合标识")
+    cleaned = dict(value)
+    del cleaned["_turn"]
+    return cleaned
+
+
+def _with_turn_marker(prompt: str, turn_token: str) -> str:
+    return (
+        prompt
+        + "\n\n本轮唯一标识为 "
+        + turn_token
+        + "。你输出的 JSON 对象必须额外包含字段 \"_turn\":\""
+        + turn_token
+        + "\"。这是本轮回复的一部分，不得省略或改写。"
+    )
 
 
 def _looks_like_json(text: str) -> bool:

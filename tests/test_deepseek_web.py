@@ -1,6 +1,11 @@
 import unittest
 
-from adapters.deepseek_web import DeepSeekWebError, parse_json_response, select_new_json_candidate
+from adapters.deepseek_web import (
+    DeepSeekWebError,
+    parse_json_response,
+    parse_marked_json_response,
+    select_new_json_candidate,
+)
 
 
 class DeepSeekWebTests(unittest.TestCase):
@@ -29,6 +34,21 @@ class DeepSeekWebTests(unittest.TestCase):
     def test_resurfaced_old_json_is_not_selected(self):
         old = '{"type":"tool_call","id":"1"}'
         self.assertEqual(select_new_json_candidate([old], {old}), "")
+
+    def test_only_current_turn_candidate_is_selected(self):
+        old = '{"type":"final","content":"same","_turn":"old-turn"}'
+        new = '{"type":"final","content":"same","_turn":"new-turn"}'
+        self.assertEqual(select_new_json_candidate([old, new], set(), "new-turn"), new)
+
+    def test_turn_marker_is_validated_and_removed(self):
+        value = parse_marked_json_response(
+            '{"type":"final","content":"done","_turn":"abc"}', "abc"
+        )
+        self.assertEqual(value, {"type": "final", "content": "done"})
+        with self.assertRaises(DeepSeekWebError):
+            parse_marked_json_response(
+                '{"type":"final","content":"done","_turn":"old"}', "new"
+            )
 
 
 if __name__ == "__main__":

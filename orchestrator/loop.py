@@ -28,7 +28,11 @@ class AgentLoop:
 
     def run(self, task: str) -> str:
         self._log("task_started", {"task": task, "max_steps": self.max_steps})
-        raw_message = self.model.start(task, self.tools.describe())
+        try:
+            raw_message = self.model.start(task, self.tools.describe())
+        except Exception as exc:
+            self._log("model_error", {"stage": "start", "error_type": type(exc).__name__, "error": str(exc)})
+            raise
         seen_call_ids: set[str] = set()
         consecutive_protocol_errors = 0
 
@@ -48,7 +52,7 @@ class AgentLoop:
                 self._log("protocol_error", error_result)
                 if consecutive_protocol_errors > 2:
                     raise RuntimeError("模型连续三次违反消息协议，任务已安全停止") from exc
-                raw_message = self.model.continue_with_result(error_result)
+                raw_message = self._continue_model(error_result)
                 continue
             if isinstance(message, FinalMessage):
                 self._log("task_finished", {"content": message.content})
@@ -62,7 +66,7 @@ class AgentLoop:
                     "answer": answer,
                 }
                 self._log("user_response", user_result)
-                raw_message = self.model.continue_with_result(user_result)
+                raw_message = self._continue_model(user_result)
                 continue
 
             assert isinstance(message, ToolCall)
@@ -74,7 +78,7 @@ class AgentLoop:
                     "instruction": "不要重复工具调用；根据已有结果继续，并为下一次必要调用使用全新的唯一 ID。",
                 }
                 self._log("protocol_error", error_result)
-                raw_message = self.model.continue_with_result(error_result)
+                raw_message = self._continue_model(error_result)
                 continue
             seen_call_ids.add(message.id)
 
@@ -93,10 +97,20 @@ class AgentLoop:
                 result = {"type": "tool_result", "id": message.id, "ok": False, "error": str(exc)}
 
             self._log("tool_result", result)
-            raw_message = self.model.continue_with_result(result)
+            raw_message = self._continue_model(result)
 
         raise RuntimeError(f"超过最大步骤数 {self.max_steps}，任务已安全停止")
 
     def _log(self, event: str, data: object) -> None:
         if self.audit is not None:
             self.audit.write(event, data)
+
+    def _continue_model(self, result: dict[str, object]) -> object:
+        try:
+            return self.model.continue_with_result(result)
+        except Exception as exc:
+            self._log(
+                "model_error",
+                {"stage": "continue", "error_type": type(exc).__name__, "error": str(exc)},
+            )
+            raise
