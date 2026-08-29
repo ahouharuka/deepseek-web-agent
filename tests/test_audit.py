@@ -15,6 +15,7 @@ class AuditLogTests(unittest.TestCase):
                 {
                     "task": "private task",
                     "arguments": {"path": "safe.py", "new_text": "private source"},
+                    "lines": ["private", "source"],
                     "message": "github" + "_pat_" + "abcdefghijklmnopqrstuvwxyz123456",
                 },
             )
@@ -22,6 +23,7 @@ class AuditLogTests(unittest.TestCase):
             self.assertEqual(record["data"]["task"]["redacted"], True)
             self.assertEqual(record["data"]["arguments"]["new_text"]["redacted"], True)
             self.assertEqual(record["data"]["message"], "[redacted: likely secret]")
+            self.assertEqual(record["data"]["lines"], "[redacted]")
 
 
 if __name__ == "__main__":

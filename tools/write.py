@@ -33,7 +33,10 @@ def _prepare(workspace: Path, arguments: dict[str, Any]) -> tuple[Path, str, str
     count = original.count(old_text)
     if count != 1:
         raise ValueError(f"old_text 必须恰好出现一次，实际出现 {count} 次")
-    return target, original, original.replace(old_text, new_text, 1)
+    updated = original.replace(old_text, new_text, 1)
+    if updated == original:
+        raise ValueError("拒绝没有实际变化的文本替换")
+    return target, original, updated
 
 
 def preview_text_patch(workspace: Path, arguments: dict[str, Any]) -> str:
@@ -55,12 +58,21 @@ def apply_text_patch(workspace: Path, arguments: dict[str, Any]) -> dict[str, An
 
 
 def _prepare_create(workspace: Path, arguments: dict[str, Any]) -> tuple[Path, str]:
-    if set(arguments) != {"path", "content"}:
-        raise ValueError("create_text_file 只接受 path 和 content")
+    keys = set(arguments)
+    if keys not in ({"path", "content"}, {"path", "lines"}):
+        raise ValueError("create_text_file 只接受 path 加 content，或 path 加 lines")
     target = resolve_in_workspace(workspace, arguments["path"])
-    content = arguments["content"]
-    if not isinstance(content, str):
-        raise ValueError("content 必须是字符串")
+    if "lines" in arguments:
+        lines = arguments["lines"]
+        if not isinstance(lines, list) or not lines or not all(isinstance(line, str) for line in lines):
+            raise ValueError("lines 必须是非空字符串数组")
+        if any("\n" in line or "\r" in line for line in lines):
+            raise ValueError("lines 的每个元素必须正好对应一行，不能包含换行符")
+        content = "\n".join(lines) + "\n"
+    else:
+        content = arguments["content"]
+        if not isinstance(content, str):
+            raise ValueError("content 必须是字符串")
     if len(content) > 100_000:
         raise ValueError("新文件内容超过 100000 字符")
     if target.suffix.lower() not in CREATE_EXTENSIONS:
@@ -108,6 +120,8 @@ def _prepare_replace_line(workspace: Path, arguments: dict[str, Any]) -> tuple[P
     actual = lines[line_number - 1].rstrip("\r\n")
     if actual != expected:
         raise ValueError(f"目标行内容与 expected 不一致；实际为 {actual!r}")
+    if replacement == actual:
+        raise ValueError("拒绝没有实际变化的单行替换")
     return target, lines, line_number - 1, replacement
 
 

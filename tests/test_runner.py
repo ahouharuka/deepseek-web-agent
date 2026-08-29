@@ -2,7 +2,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tools.runner import _sanitized_environment, preview_run_tests, run_tests
+from tools.runner import (
+    _sanitized_environment,
+    preview_run_python_file,
+    preview_run_tests,
+    run_python_file,
+    run_tests,
+)
 
 
 class RunnerTests(unittest.TestCase):
@@ -37,3 +43,16 @@ class RunnerTests(unittest.TestCase):
         self.assertNotIn("AWS_SECRET_ACCESS_KEY", environment)
         self.assertNotIn("GITHUB_TOKEN", environment)
         self.assertEqual(environment["PYTHONNOUSERSITE"], "1")
+
+    def test_run_python_file(self):
+        script = self.workspace / "hello.py"
+        script.write_text("print('hello')\n", encoding="utf-8")
+        result = run_python_file(self.workspace, {"path": "hello.py"})
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["stdout"].strip(), "hello")
+        self.assertIn("-I", preview_run_python_file(self.workspace, {"path": "hello.py"}))
+
+    def test_run_python_file_rejects_non_python(self):
+        (self.workspace / "notes.txt").write_text("hello", encoding="utf-8")
+        with self.assertRaises(ValueError):
+            run_python_file(self.workspace, {"path": "notes.txt"})

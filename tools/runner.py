@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from tools.readonly import resolve_in_workspace
+from tools.readonly import ensure_no_symlink_path, resolve_in_workspace
 
 
 MAX_OUTPUT_CHARS = 30_000
@@ -71,6 +71,58 @@ def _as_text(value: str | bytes | None) -> str:
     if value is None:
         return ""
     return value.decode("utf-8", errors="replace") if isinstance(value, bytes) else value
+
+
+def _prepare_python_file(workspace: Path, arguments: dict[str, Any]) -> tuple[list[str], Path]:
+    if set(arguments) != {"path"}:
+        raise ValueError("run_python_file 只接受 path")
+    target = resolve_in_workspace(workspace, arguments["path"])
+    ensure_no_symlink_path(workspace, target)
+    if not target.is_file() or target.suffix.casefold() != ".py":
+        raise ValueError("run_python_file 只能运行已有的 .py 文件")
+    if target.stat().st_size > 200_000:
+        raise ValueError("Python 文件过大，拒绝运行")
+    return [sys.executable, "-I", str(target)], workspace
+
+
+def preview_run_python_file(workspace: Path, arguments: dict[str, Any]) -> str:
+    command, cwd = _prepare_python_file(workspace, arguments)
+    return f"工作目录：{cwd}\n固定命令：{' '.join(command)}\n超时：{TIMEOUT_SECONDS} 秒"
+
+
+def run_python_file(workspace: Path, arguments: dict[str, Any]) -> dict[str, Any]:
+    command, cwd = _prepare_python_file(workspace, arguments)
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=TIMEOUT_SECONDS,
+            shell=False,
+            env=_sanitized_environment(),
+        )
+        stdout = completed.stdout
+        stderr = completed.stderr
+        return {
+            "exit_code": completed.returncode,
+            "passed": completed.returncode == 0,
+            "stdout": stdout[:MAX_OUTPUT_CHARS],
+            "stderr": stderr[:MAX_OUTPUT_CHARS],
+            "truncated": len(stdout) > MAX_OUTPUT_CHARS or len(stderr) > MAX_OUTPUT_CHARS,
+            "timed_out": False,
+        }
+    except subprocess.TimeoutExpired as exc:
+        return {
+            "exit_code": None,
+            "passed": False,
+            "stdout": _as_text(exc.stdout)[:MAX_OUTPUT_CHARS],
+            "stderr": _as_text(exc.stderr)[:MAX_OUTPUT_CHARS],
+            "truncated": False,
+            "timed_out": True,
+        }
 
 
 def _sanitized_environment() -> dict[str, str]:

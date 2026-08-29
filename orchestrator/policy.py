@@ -29,8 +29,8 @@ class Policy:
         else:
             print(f"\n即将{approval_label}，预览：")
             print(preview or "（无可用预览）")
-            if call.tool == "run_tests":
-                print("安全提示：测试文件是本机代码；即使命令固定，它仍可能访问文件或网络。仅运行你信任的工作区。")
+            if call.tool in {"run_tests", "run_python_file"}:
+                print("安全提示：即将运行工作区中的本机代码；即使命令固定，它仍可能访问文件或网络。仅运行你信任的工作区。")
             prompt = f"允许工具 {call.tool} {approval_label}？[y/N] "
         answer = input(prompt)
         if answer.strip().lower() not in {"y", "yes"}:

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from tools.readonly import get_file_info, list_files, read_file, search_text
-from tools.runner import preview_run_tests, run_tests
+from tools.runner import preview_run_python_file, preview_run_tests, run_python_file, run_tests
 from tools.write import (
     apply_text_patch,
     create_text_file,
@@ -79,11 +79,21 @@ def build_coding_registry(workspace: Path) -> ToolRegistry:
     tools.append(
         Tool(
             "create_text_file",
-            "创建新的 UTF-8 文本文件。参数：path、content；禁止覆盖已有文件；支持 .py/.txt/.md/.json/.yaml/.yml/.toml",
+            "创建新的 UTF-8 文本文件。参数：path、lines（推荐，每个数组元素是一行且不得含换行符）或 path、content；禁止覆盖已有文件；支持 .py/.txt/.md/.json/.yaml/.yml/.toml",
             False,
             lambda a: create_text_file(workspace, a),
             lambda a: preview_create_text_file(workspace, a),
             "创建新文件",
+        )
+    )
+    tools.append(
+        Tool(
+            "run_python_file",
+            "运行一个已有 Python 文件进行验证。参数：path；使用固定 Python -I 命令、精简环境和超时，不接受参数",
+            False,
+            lambda a: run_python_file(workspace, a),
+            lambda a: preview_run_python_file(workspace, a),
+            "执行 Python 代码",
         )
     )
     tools.append(

@@ -17,6 +17,12 @@ class DeepSeekWebTests(unittest.TestCase):
         value = parse_json_response('```json\n{"type":"final","content":"done"}\n```')
         self.assertEqual(value["type"], "final")
 
+    def test_fenced_python_dunder_content_is_preserved(self):
+        value = parse_json_response(
+            '```json\n{"type":"tool_call","id":"1","tool":"create_text_file","arguments":{"path":"x.py","lines":["if __name__ == \'__main__\':"]}}\n```'
+        )
+        self.assertEqual(value["arguments"]["lines"][0], "if __name__ == '__main__':")
+
     def test_non_json_is_rejected(self):
         with self.assertRaises(DeepSeekWebError):
             parse_json_response("I cannot comply")

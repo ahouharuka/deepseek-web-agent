@@ -44,6 +44,8 @@ Current tools:
 - List directories, read UTF-8 text, search text, inspect file metadata.
 - Replace one verified line or one uniquely matching text block.
 - Create a new text file without overwriting an existing file.
+- Transfer multiline source as line arrays so web Markdown cannot remove source characters such as Python dunders.
+- Run one specified Python file after interactive approval and use its output to continue fixing failures.
 - Run a fixed `python -m unittest discover` command without a shell.
 - Load explicit reusable workflow skills.
 - Toggle DeepSeek's **Deep Think** mode with `off`, `on`, or `auto`.

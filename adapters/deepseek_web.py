@@ -107,7 +107,7 @@ class DeepSeekWebModel:
             repair_prompt = (
                 "你上一条回复不是有效 JSON。不要改变语义，不要重新执行或重复声称执行工具；"
                 "只把上一条回复改写成一个语法正确的 JSON 对象，字符串内部的双引号必须转义。"
-                "禁止 Markdown 和额外文字。\n\n上一条回复：\n" + text
+                "必须放在一个 ```json 代码块中，代码块外禁止额外文字。\n\n上一条回复：\n" + text
             )
             repaired = self._send_and_wait(_with_turn_marker(repair_prompt, repair_token), repair_token)
             try:
@@ -118,7 +118,7 @@ class DeepSeekWebModel:
     def _send_and_wait(self, prompt: str, turn_token: str) -> str:
         assert self._page is not None
         input_box = self._page.get_by_placeholder(self.INPUT_PLACEHOLDER, exact=False)
-        response_locator = self._page.locator("p")
+        response_locator = self._page.locator("p, pre")
         visible_before = {
             text.strip() for text in response_locator.all_inner_texts() if _looks_like_json(text)
         }
